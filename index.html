@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Inventário Mobile</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f4f4f4;
+}
+.container {
+  background: white;
+  padding: 20px;
+  margin: 20px;
+  border-radius: 10px;
+}
+input, button {
+  padding: 10px;
+  margin: 10px;
+  width: 80%;
+}
+#reader {
+  width: 300px;
+  margin: auto;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📦 Inventário via Celular</h2>
+
+<div class="container">
+  <div id="reader"></div>
+
+  <input type="text" id="codigo" placeholder="Código" readonly>
+  <input type="text" id="descricao" placeholder="Descrição" readonly>
+  <input type="number" id="quantidade" placeholder="Quantidade">
+
+  <button onclick="adicionar()">Adicionar</button>
+  <button onclick="exportar()">Exportar Excel</button>
+</div>
+
+<script>
+// 🔹 BASE DE PRODUTOS (você pode gerar isso do Excel)
+const produtos = {
+  "7894900030013": "FANTA LARANJA 350ML",
+  "7894900700015": "COCA 0 LT 350ML",
+  "7894900701517": "COCA 0 2L",
+  "7896336002862": "AMENDOIM CROKISSIMO 90G",
+  "040232885501": "PITEIRA BEM BOLADO SLIM",
+  "631430183102": "APERITIVO HAMBRE ITALIANO 750ML"
+};
+
+let inventario = [];
+
+function onScanSuccess(decodedText) {
+  document.getElementById("codigo").value = decodedText;
+
+  if (produtos[decodedText]) {
+    document.getElementById("descricao").value = produtos[decodedText];
+  } else {
+    document.getElementById("descricao").value = "Produto não encontrado";
+  }
+}
+
+new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 })
+.render(onScanSuccess);
+
+function adicionar() {
+  let codigo = document.getElementById("codigo").value;
+  let descricao = document.getElementById("descricao").value;
+  let quantidade = document.getElementById("quantidade").value;
+
+  if (!codigo || !quantidade) {
+    alert("Preencha tudo!");
+    return;
+  }
+
+  inventario.push({
+    Codigo: codigo,
+    Descricao: descricao,
+    Quantidade: quantidade
+  });
+
+  alert("Adicionado!");
+
+  document.getElementById("quantidade").value = "";
+}
+
+function exportar() {
+  let ws = XLSX.utils.json_to_sheet(inventario);
+  let wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+
+  XLSX.writeFile(wb, "inventario.xlsx");
+}
+</script>
+
+</body>
+</html>
