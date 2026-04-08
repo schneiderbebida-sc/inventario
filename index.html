@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Inventário Mobile</title>
+<title>Inventário Mobile PRO</title>
 
 <script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -10,15 +10,22 @@
 <style>
 body {
   font-family: Arial;
-  text-align: center;
   background: #f4f4f4;
+  text-align: center;
 }
 
 .container {
-  background: white;
-  padding: 20px;
+  background: #fff;
   margin: 20px;
+  padding: 20px;
   border-radius: 10px;
+}
+
+input, button {
+  padding: 12px;
+  margin: 8px;
+  width: 90%;
+  font-size: 16px;
 }
 
 #reader {
@@ -27,30 +34,36 @@ body {
   display: none;
 }
 
-input, button {
-  padding: 12px;
-  margin: 8px;
-  width: 85%;
-  font-size: 16px;
+.resultado-item {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  cursor: pointer;
+  text-align: left;
+}
+
+.resultado-item:hover {
+  background: #eee;
 }
 
 .lista {
   text-align: left;
   max-height: 200px;
   overflow-y: auto;
+  margin-top: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📦 Inventário Mobile</h2>
+<h2>📦 Inventário Mobile PRO</h2>
 
 <div class="container">
 
-  <input type="text" id="busca" placeholder="Buscar por código, código de barras ou descrição">
+  <input type="text" id="busca" placeholder="Buscar produto..." oninput="buscar()">
 
-  <button onclick="buscar()">🔎 Buscar</button>
+  <div id="resultados"></div>
+
   <button onclick="abrirCamera()">📷 Ler Código</button>
 
   <div id="reader"></div>
@@ -69,7 +82,7 @@ input, button {
 
 <script>
 
-// 🔹 BASE DE PRODUTOS (simulando Excel)
+// 🔹 BASE DE PRODUTOS
 const produtos = [
   { codigo: "0000", barras: "7894900030013", descricao: "FANTA LARANJA 350ML" },
   { codigo: "00000", barras: "7894900700015", descricao: "COCA 0 LT 350ML" },
@@ -81,22 +94,67 @@ const produtos = [
 
 let inventario = [];
 let scannerAtivo = false;
+let ultimoCodigo = null;
 
-// 🔎 BUSCA (código, barras ou descrição)
+// 🔊 Beep
+function beep() {
+  let ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let osc = ctx.createOscillator();
+  osc.connect(ctx.destination);
+  osc.start();
+  setTimeout(() => osc.stop(), 100);
+}
+
+// 📳 Vibração
+function vibrar() {
+  if (navigator.vibrate) navigator.vibrate(100);
+}
+
+// 🔎 BUSCA INTELIGENTE
 function buscar() {
   let termo = document.getElementById("busca").value.toLowerCase();
 
-  let produto = produtos.find(p =>
-    p.codigo === termo ||
-    p.barras === termo ||
+  if (!termo) {
+    document.getElementById("resultados").innerHTML = "";
+    return;
+  }
+
+  let resultados = produtos.filter(p =>
+    p.codigo.toLowerCase().includes(termo) ||
+    p.barras.includes(termo) ||
     p.descricao.toLowerCase().includes(termo)
   );
 
-  if (produto) {
-    preencherProduto(produto);
-  } else {
-    alert("Produto não encontrado");
+  // Auto seleção se só tiver 1
+  if (resultados.length === 1) {
+    selecionarProduto(resultados[0].codigo);
+    return;
   }
+
+  let html = "";
+
+  resultados.forEach(p => {
+    html += `
+      <div class="resultado-item" onclick="selecionarProduto('${p.codigo}')">
+        <strong>${p.descricao}</strong><br>
+        Cod: ${p.codigo} | Barras: ${p.barras}
+      </div>
+    `;
+  });
+
+  document.getElementById("resultados").innerHTML = html;
+}
+
+// 🎯 Selecionar produto
+function selecionarProduto(codigo) {
+  let p = produtos.find(x => x.codigo === codigo);
+
+  document.getElementById("codigo").value = p.codigo;
+  document.getElementById("barras").value = p.barras;
+  document.getElementById("descricao").value = p.descricao;
+
+  document.getElementById("resultados").innerHTML = "";
+  document.getElementById("busca").value = "";
 }
 
 // 📷 ABRIR CÂMERA
@@ -109,17 +167,14 @@ function abrirCamera() {
     inputStream: {
       type: "LiveStream",
       target: document.querySelector('#reader'),
-      constraints: {
-        facingMode: "environment"
-      }
+      constraints: { facingMode: "environment" }
     },
     decoder: {
       readers: ["ean_reader", "ean_13_reader"]
     }
   }, function(err) {
     if (err) {
-      console.error(err);
-      alert("Erro ao abrir câmera");
+      alert("Erro na câmera");
       return;
     }
     Quagga.start();
@@ -127,12 +182,17 @@ function abrirCamera() {
   });
 
   Quagga.onDetected(function(result) {
-    let codigoLido = result.codeResult.code;
+    let codigo = result.codeResult.code;
 
-    let produto = produtos.find(p => p.barras === codigoLido);
+    if (codigo === ultimoCodigo) return;
+    ultimoCodigo = codigo;
+
+    let produto = produtos.find(p => p.barras === codigo);
 
     if (produto) {
-      preencherProduto(produto);
+      selecionarProduto(produto.codigo);
+      beep();
+      vibrar();
       pararCamera();
     } else {
       alert("Produto não encontrado");
@@ -147,35 +207,34 @@ function pararCamera() {
   scannerAtivo = false;
 }
 
-// 📌 Preencher campos
-function preencherProduto(p) {
-  document.getElementById("codigo").value = p.codigo;
-  document.getElementById("barras").value = p.barras;
-  document.getElementById("descricao").value = p.descricao;
-}
-
-// ➕ Adicionar item
+// ➕ ADICIONAR (COM SOMA DE QUANTIDADE)
 function adicionar() {
   let codigo = document.getElementById("codigo").value;
   let descricao = document.getElementById("descricao").value;
-  let quantidade = document.getElementById("quantidade").value;
+  let quantidade = parseInt(document.getElementById("quantidade").value);
 
   if (!codigo || !quantidade) {
     alert("Preencha os dados!");
     return;
   }
 
-  inventario.push({
-    Codigo: codigo,
-    Descricao: descricao,
-    Quantidade: quantidade
-  });
+  let existente = inventario.find(i => i.Codigo === codigo);
+
+  if (existente) {
+    existente.Quantidade += quantidade;
+  } else {
+    inventario.push({
+      Codigo: codigo,
+      Descricao: descricao,
+      Quantidade: quantidade
+    });
+  }
 
   atualizarLista();
   document.getElementById("quantidade").value = "";
 }
 
-// 📋 Lista
+// 📋 LISTA
 function atualizarLista() {
   let html = "";
 
@@ -186,8 +245,13 @@ function atualizarLista() {
   document.getElementById("lista").innerHTML = html;
 }
 
-// 📤 Exportar Excel
+// 📤 EXPORTAR
 function exportar() {
+  if (inventario.length === 0) {
+    alert("Nada para exportar!");
+    return;
+  }
+
   let ws = XLSX.utils.json_to_sheet(inventario);
   let wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Inventario");
