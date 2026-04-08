@@ -24,6 +24,7 @@ body {
 #reader {
   width: 300px;
   margin: auto;
+  display: none;
 }
 
 input, button {
@@ -33,28 +34,29 @@ input, button {
   font-size: 16px;
 }
 
-button {
-  cursor: pointer;
-}
-
 .lista {
   text-align: left;
   max-height: 200px;
   overflow-y: auto;
-  margin-top: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📦 Inventário via Celular</h2>
+<h2>📦 Inventário Mobile</h2>
 
 <div class="container">
+
+  <input type="text" id="busca" placeholder="Buscar por código, código de barras ou descrição">
+
+  <button onclick="buscar()">🔎 Buscar</button>
+  <button onclick="abrirCamera()">📷 Ler Código</button>
 
   <div id="reader"></div>
 
   <input type="text" id="codigo" placeholder="Código" readonly>
+  <input type="text" id="barras" placeholder="Código de Barras" readonly>
   <input type="text" id="descricao" placeholder="Descrição" readonly>
   <input type="number" id="quantidade" placeholder="Quantidade">
 
@@ -67,38 +69,42 @@ button {
 
 <script>
 
-// 🔹 BASE DE PRODUTOS (você pode expandir)
-const produtos = {
-  "7894900030013": "FANTA LARANJA 350ML",
-  "7894900700015": "COCA 0 LT 350ML",
-  "7894900701517": "COCA 0 2L",
-  "7896336002862": "AMENDOIM CROKISSIMO 90G",
-  "040232885501": "PITEIRA BEM BOLADO SLIM",
-  "631430183102": "APERITIVO HAMBRE ITALIANO 750ML"
-};
+// 🔹 BASE DE PRODUTOS (simulando Excel)
+const produtos = [
+  { codigo: "0000", barras: "7894900030013", descricao: "FANTA LARANJA 350ML" },
+  { codigo: "00000", barras: "7894900700015", descricao: "COCA 0 LT 350ML" },
+  { codigo: "00002", barras: "7894900701517", descricao: "COCA 0 2L" },
+  { codigo: "01059", barras: "7896336002862", descricao: "AMENDOIM CROKISSIMO 90G" },
+  { codigo: "040232885501", barras: "040232885501", descricao: "PITEIRA BEM BOLADO SLIM" },
+  { codigo: "049", barras: "631430183102", descricao: "APERITIVO HAMBRE ITALIANO 750ML" }
+];
 
 let inventario = [];
-let ultimoCodigo = null;
+let scannerAtivo = false;
 
-// 🔊 Beep simples
-function beep() {
-  let ctx = new (window.AudioContext || window.webkitAudioContext)();
-  let oscillator = ctx.createOscillator();
-  oscillator.type = "beep";
-  oscillator.connect(ctx.destination);
-  oscillator.start();
-  setTimeout(() => oscillator.stop(), 100);
-}
+// 🔎 BUSCA (código, barras ou descrição)
+function buscar() {
+  let termo = document.getElementById("busca").value.toLowerCase();
 
-// 📳 Vibração
-function vibrar() {
-  if (navigator.vibrate) {
-    navigator.vibrate(100);
+  let produto = produtos.find(p =>
+    p.codigo === termo ||
+    p.barras === termo ||
+    p.descricao.toLowerCase().includes(termo)
+  );
+
+  if (produto) {
+    preencherProduto(produto);
+  } else {
+    alert("Produto não encontrado");
   }
 }
 
-// 📷 Scanner
-function iniciarScanner() {
+// 📷 ABRIR CÂMERA
+function abrirCamera() {
+  if (scannerAtivo) return;
+
+  document.getElementById("reader").style.display = "block";
+
   Quagga.init({
     inputStream: {
       type: "LiveStream",
@@ -113,33 +119,40 @@ function iniciarScanner() {
   }, function(err) {
     if (err) {
       console.error(err);
-      alert("Erro ao iniciar câmera");
+      alert("Erro ao abrir câmera");
       return;
     }
     Quagga.start();
+    scannerAtivo = true;
   });
 
   Quagga.onDetected(function(result) {
-    let codigo = result.codeResult.code;
+    let codigoLido = result.codeResult.code;
 
-    // Evita leitura duplicada contínua
-    if (codigo === ultimoCodigo) return;
-    ultimoCodigo = codigo;
+    let produto = produtos.find(p => p.barras === codigoLido);
 
-    document.getElementById("codigo").value = codigo;
-
-    if (produtos[codigo]) {
-      document.getElementById("descricao").value = produtos[codigo];
+    if (produto) {
+      preencherProduto(produto);
+      pararCamera();
     } else {
-      document.getElementById("descricao").value = "Produto não encontrado";
+      alert("Produto não encontrado");
     }
-
-    beep();
-    vibrar();
   });
 }
 
-iniciarScanner();
+// 🛑 PARAR CÂMERA
+function pararCamera() {
+  Quagga.stop();
+  document.getElementById("reader").style.display = "none";
+  scannerAtivo = false;
+}
+
+// 📌 Preencher campos
+function preencherProduto(p) {
+  document.getElementById("codigo").value = p.codigo;
+  document.getElementById("barras").value = p.barras;
+  document.getElementById("descricao").value = p.descricao;
+}
 
 // ➕ Adicionar item
 function adicionar() {
@@ -159,11 +172,10 @@ function adicionar() {
   });
 
   atualizarLista();
-
   document.getElementById("quantidade").value = "";
 }
 
-// 📋 Atualizar lista na tela
+// 📋 Lista
 function atualizarLista() {
   let html = "";
 
@@ -176,11 +188,6 @@ function atualizarLista() {
 
 // 📤 Exportar Excel
 function exportar() {
-  if (inventario.length === 0) {
-    alert("Nada para exportar!");
-    return;
-  }
-
   let ws = XLSX.utils.json_to_sheet(inventario);
   let wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Inventario");
