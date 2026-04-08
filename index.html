@@ -81,7 +81,7 @@ hr {
 </div>
 
 <script>
-// ================= PRODUTOS (EXEMPLO – mantenha sua lista) =================
+// ===== BASE DE PRODUTOS (exemplo – mantenha sua lista completa) =====
 const produtos = [
         { codigo: "0000", barras: "7894900030013", descricao: "FANTA LARANJA  350ML" },
         { codigo: "00000", barras: "7894900700015", descricao: "COCA 0 LT 350ML" },
@@ -375,15 +375,15 @@ const produtos = [
         { codigo: "986537", barras: "7896045506040", descricao: "CERVEJA HEINEKEN ZERO LN 330ML" },
         { codigo: "98921859", barras: "8000254003965", descricao: "WAVE ROSSO" },
         { codigo: "995", barras: "50196364", descricao: "WHISKY BUCHANANS 1L" },
-        { codigo: "999", barras: "5000281004020", descricao: "WHISKY OLD PARR 1L" }   
+        { codigo: "999", barras: "5000281004020", descricao: "WHISKY OLD PARR 1L" }
 ];
 
-// ================= VARIÁVEIS =================
+// ===== VARIÁVEIS =====
 let inventario = [];
 let scannerAtivo = false;
 let ultimoCodigo = null;
 
-// ================= BUSCA =================
+// ===== BUSCA =====
 function buscar() {
     const termo = document.getElementById("busca").value.toLowerCase().trim();
     if (!termo) {
@@ -409,7 +409,7 @@ function buscar() {
     document.getElementById("resultados").innerHTML = html;
 }
 
-// ================= SELECIONAR =================
+// ===== SELECIONAR PRODUTO =====
 function selecionarProduto(codigo) {
     const p = produtos.find(x => x.codigo === codigo);
     document.getElementById("codigo").value = p.codigo;
@@ -419,10 +419,9 @@ function selecionarProduto(codigo) {
     document.getElementById("resultados").innerHTML = "";
 }
 
-// ================= CÂMERA =================
+// ===== CÂMERA =====
 function abrirCamera() {
     if (scannerAtivo) return;
-
     document.getElementById("reader").style.display = "block";
 
     Quagga.init({
@@ -433,10 +432,7 @@ function abrirCamera() {
         },
         decoder: { readers: ["ean_reader", "ean_13_reader"] }
     }, err => {
-        if (err) {
-            alert("Erro ao abrir câmera");
-            return;
-        }
+        if (err) return alert("Erro ao abrir câmera");
         Quagga.start();
         scannerAtivo = true;
     });
@@ -462,7 +458,7 @@ function pararCamera() {
     scannerAtivo = false;
 }
 
-// ================= ADICIONAR =================
+// ===== ADICIONAR =====
 function adicionar() {
     const codigo = document.getElementById("codigo").value;
     const barras = document.getElementById("barras").value;
@@ -470,7 +466,7 @@ function adicionar() {
     const quantidade = parseInt(document.getElementById("quantidade").value);
 
     if (!codigo || !quantidade) {
-        alert("Preencha corretamente");
+        alert("Preencha os dados corretamente");
         return;
     }
 
@@ -485,22 +481,18 @@ function adicionar() {
     document.getElementById("quantidade").value = "";
 }
 
-// ================= LISTA =================
+// ===== LISTA =====
 function atualizarLista() {
     let html = "";
     inventario.forEach(i => {
         html += `
-        <div>
-            ${i.codigo} | ${i.barras}<br>
-            ${i.descricao}<br>
-            Qtd: <strong>${i.quantidade}</strong>
-            <hr>
-        </div>`;
+        ${i.codigo}|${i.barras}|${i.descricao}|Qtd|${i.quantidade}
+        <hr>`;
     });
     document.getElementById("lista").innerHTML = html;
 }
 
-// ================= WHATSAPP (TEXTO) =================
+// ===== ENVIAR WHATSAPP (FORMATO CORRETO) =====
 function enviarWhatsApp() {
     if (inventario.length === 0) {
         alert("Inventário vazio");
@@ -509,16 +501,16 @@ function enviarWhatsApp() {
 
     const agora = new Date();
     const dataHora =
-        agora.getDate().toString().padStart(2, "0") + "/" +
-        (agora.getMonth()+1).toString().padStart(2, "0") + "/" +
+        agora.getDate().toString().padStart(2,"0") + "/" +
+        (agora.getMonth()+1).toString().padStart(2,"0") + "/" +
         agora.getFullYear() + " " +
-        agora.getHours().toString().padStart(2, "0") + ":" +
-        agora.getMinutes().toString().padStart(2, "0");
+        agora.getHours().toString().padStart(2,"0") + ":" +
+        agora.getMinutes().toString().padStart(2,"0");
 
-    let texto = `📦 INVENTÁRIO\n🕒 ${dataHora}\n\n`;
+    let texto = `INVENTÁRIO ${dataHora}\n\n`;
 
     inventario.forEach(i => {
-        texto += `${i.codigo}\n${i.descricao}\nQtd: ${i.quantidade}\n\n`;
+        texto += `${i.codigo}|${i.barras}|${i.descricao}|Qtd|${i.quantidade}\n`;
     });
 
     window.open(
