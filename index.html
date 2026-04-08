@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Inventário Mobile PRO</title>
+<title>Inventário Mobile</title>
 
 <script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
 
@@ -30,7 +30,6 @@ button {
 }
 #reader {
     width: 100%;
-    margin: 10px auto;
     display: none;
 }
 .resultado-item {
@@ -44,17 +43,21 @@ button {
 }
 .lista {
     text-align: left;
-    max-height: 200px;
+    max-height: 250px;
     overflow-y: auto;
     margin-top: 10px;
     font-size: 14px;
+}
+hr {
+    border: none;
+    border-top: 1px solid #ddd;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📦 Inventário Mobile PRO</h2>
+<h2>📦 Inventário Mobile</h2>
 
 <div class="container">
 
@@ -71,15 +74,16 @@ button {
     <input type="number" id="quantidade" placeholder="Quantidade">
     <button onclick="adicionar()">➕ Adicionar</button>
 
-    <button onclick="exportarTXT()">📤 Exportar Inventário + WhatsApp</button>
+    <button onclick="enviarWhatsApp()">📲 Enviar Inventário (Texto)</button>
 
     <div class="lista" id="lista"></div>
+
 </div>
 
 <script>
-// ================= BASE DE PRODUTOS =================
+// ================= PRODUTOS (EXEMPLO – mantenha sua lista) =================
 const produtos = [
-    { codigo: "0000", barras: "7894900030013", descricao: "FANTA LARANJA  350ML" },
+        { codigo: "0000", barras: "7894900030013", descricao: "FANTA LARANJA  350ML" },
         { codigo: "00000", barras: "7894900700015", descricao: "COCA 0 LT 350ML" },
         { codigo: "00002", barras: "7894900701517", descricao: "COCA 0 2L" },
         { codigo: "01059", barras: "7896336002862", descricao: "AMENDOIN CROKISSIMO 90G" },
@@ -371,8 +375,7 @@ const produtos = [
         { codigo: "986537", barras: "7896045506040", descricao: "CERVEJA HEINEKEN ZERO LN 330ML" },
         { codigo: "98921859", barras: "8000254003965", descricao: "WAVE ROSSO" },
         { codigo: "995", barras: "50196364", descricao: "WHISKY BUCHANANS 1L" },
-    { codigo: "999", barras: "5000281004020", descricao: "WHISKY OLD PARR 1L" }    
-    // 👉 Pode manter sua lista completa aqui (sem alterar nada)
+        { codigo: "999", barras: "5000281004020", descricao: "WHISKY OLD PARR 1L" }   
 ];
 
 // ================= VARIÁVEIS =================
@@ -406,7 +409,7 @@ function buscar() {
     document.getElementById("resultados").innerHTML = html;
 }
 
-// ================= SELEÇÃO =================
+// ================= SELECIONAR =================
 function selecionarProduto(codigo) {
     const p = produtos.find(x => x.codigo === codigo);
     document.getElementById("codigo").value = p.codigo;
@@ -429,7 +432,7 @@ function abrirCamera() {
             constraints: { facingMode: "environment" }
         },
         decoder: { readers: ["ean_reader", "ean_13_reader"] }
-    }, function(err) {
+    }, err => {
         if (err) {
             alert("Erro ao abrir câmera");
             return;
@@ -438,7 +441,7 @@ function abrirCamera() {
         scannerAtivo = true;
     });
 
-    Quagga.onDetected(function(result) {
+    Quagga.onDetected(result => {
         const codigo = result.codeResult.code;
         if (codigo === ultimoCodigo) return;
         ultimoCodigo = codigo;
@@ -467,15 +470,15 @@ function adicionar() {
     const quantidade = parseInt(document.getElementById("quantidade").value);
 
     if (!codigo || !quantidade) {
-        alert("Preencha os dados!");
+        alert("Preencha corretamente");
         return;
     }
 
-    const existente = inventario.find(i => i.Codigo === codigo);
+    const existente = inventario.find(i => i.codigo === codigo);
     if (existente) {
-        existente.Quantidade += quantidade;
+        existente.quantidade += quantidade;
     } else {
-        inventario.push({ Codigo: codigo, Barras: barras, Descricao: descricao, Quantidade: quantidade });
+        inventario.push({ codigo, barras, descricao, quantidade });
     }
 
     atualizarLista();
@@ -485,50 +488,41 @@ function adicionar() {
 // ================= LISTA =================
 function atualizarLista() {
     let html = "";
-    inventario.forEach(item => {
+    inventario.forEach(i => {
         html += `
         <div>
-            ${item.Codigo} | ${item.Barras}<br>
-            ${item.Descricao}<br>
-            Qtd: <strong>${item.Quantidade}</strong>
+            ${i.codigo} | ${i.barras}<br>
+            ${i.descricao}<br>
+            Qtd: <strong>${i.quantidade}</strong>
             <hr>
         </div>`;
     });
     document.getElementById("lista").innerHTML = html;
 }
 
-// ================= EXPORTAR + WHATSAPP =================
-function exportarTXT() {
+// ================= WHATSAPP (TEXTO) =================
+function enviarWhatsApp() {
     if (inventario.length === 0) {
-        alert("Nada para exportar!");
+        alert("Inventário vazio");
         return;
     }
 
     const agora = new Date();
     const dataHora =
-        agora.getFullYear() + "-" +
-        String(agora.getMonth() + 1).padStart(2, "0") + "-" +
-        String(agora.getDate()).padStart(2, "0") + "_" +
-        String(agora.getHours()).padStart(2, "0") + "-" +
-        String(agora.getMinutes()).padStart(2, "0") + "-" +
-        String(agora.getSeconds()).padStart(2, "0");
+        agora.getDate().toString().padStart(2, "0") + "/" +
+        (agora.getMonth()+1).toString().padStart(2, "0") + "/" +
+        agora.getFullYear() + " " +
+        agora.getHours().toString().padStart(2, "0") + ":" +
+        agora.getMinutes().toString().padStart(2, "0");
 
-    const nomeArquivo = `inventario_${dataHora}.txt`;
+    let texto = `📦 INVENTÁRIO\n🕒 ${dataHora}\n\n`;
 
-    let conteudo = "";
-    inventario.forEach(item => {
-        conteudo += `${item.Codigo}\n${item.Barras}\n${item.Descricao}\nQtd ${item.Quantidade}\n\n`;
+    inventario.forEach(i => {
+        texto += `${i.codigo}\n${i.descricao}\nQtd: ${i.quantidade}\n\n`;
     });
 
-    const blob = new Blob([conteudo], { type: "text/plain;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = nomeArquivo;
-    link.click();
-
-    // Abrir grupo do WhatsApp
     window.open(
-        "https://chat.whatsapp.com/HkiO87DamdUGVZisHlLqxC",
+        "https://wa.me/?text=" + encodeURIComponent(texto),
         "_blank"
     );
 }
