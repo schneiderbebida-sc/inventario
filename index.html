@@ -8,87 +8,17 @@
     <script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
 
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #e9ecef;
-            text-align: center;
-            padding: 10px;
-        }
-        .container {
-            background: #fff;
-            margin: 0 auto;
-            padding: 20px;
-            border-radius: 15px;
-            max-width: 450px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        input, button {
-            padding: 14px;
-            margin: 8px 0;
-            width: 100%;
-            font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-        button:active {
-            transform: scale(0.98);
-        }
+        body { font-family: sans-serif; background: #e9ecef; text-align: center; padding: 10px; }
+        .container { background: #fff; margin: 0 auto; padding: 20px; border-radius: 15px; max-width: 450px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input, button { padding: 14px; margin: 8px 0; width: 100%; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; font-weight: bold; }
         .btn-whatsapp { background-color: #25d366; }
         .btn-limpar { background-color: #dc3545; margin-top: 15px; }
-        
-        #reader {
-            width: 100%;
-            display: none;
-            border: 2px solid #007bff;
-            margin-bottom: 10px;
-        }
-        #reader canvas, #reader video {
-            width: 100%;
-            height: auto;
-        }
-        .resultado-item {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            text-align: left;
-            background: #fdfdfd;
-        }
-        .resultado-item:hover { background: #f1f1f1; }
-        
-        .lista-container {
-            text-align: left;
-            margin-top: 20px;
-            background: #fff;
-            border-radius: 8px;
-            padding: 10px;
-            border: 1px solid #ddd;
-        }
-        .lista {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .item-inventario {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 14px;
-        }
-        .badge-qtd {
-            background: #007bff;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-weight: bold;
-        }
+        #reader { width: 100%; display: none; border: 2px solid #007bff; }
+        #reader video { width: 100%; height: auto; }
+        .resultado-item { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .lista-container { text-align: left; margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .lista { max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 13px; }
     </style>
 </head>
 
@@ -97,7 +27,7 @@
 <h2>📦 Inventário Mobile</h2>
 
 <div class="container">
-    <input type="text" id="busca" placeholder="🔍 Buscar produto (nome ou barras)..." oninput="buscar()">
+    <input type="text" id="busca" placeholder="🔍 Buscar produto..." oninput="buscar()">
     <div id="resultados"></div>
 
     <button onclick="abrirCamera()">📷 Ler Código de Barras</button>
@@ -106,17 +36,17 @@
     <hr>
 
     <input type="text" id="descricao" placeholder="Descrição do Produto" readonly>
-    <div style="display: flex; gap: 10px;">
-        <input type="text" id="codigo" placeholder="Cód. Interno" readonly>
-        <input type="text" id="barras" placeholder="EAN / Barras" readonly>
+    <div style="display: flex; gap: 5px;">
+        <input type="text" id="codigo" placeholder="Cód" readonly>
+        <input type="text" id="barras" placeholder="Barras" readonly>
     </div>
 
-    <input type="number" id="quantidade" placeholder="Digite a Quantidade" inputmode="numeric">
+    <input type="number" id="quantidade" placeholder="Quantidade" inputmode="numeric">
     
-    <button onclick="adicionar()">➕ Adicionar ao Inventário</button>
+    <button onclick="adicionar()">➕ Adicionar</button>
     
     <div class="lista-container">
-        <strong>Itens Realizados:</strong>
+        <strong>Itens (Formato Exportação):</strong>
         <div class="lista" id="lista"></div>
     </div>
 
@@ -424,43 +354,32 @@ const produtos = [
 
 let inventario = [];
 
-// === PERSISTÊNCIA DE DADOS (LOCALSTORAGE) ===
-
-// Carregar dados ao abrir a página
 window.onload = function() {
-    const dadosSalvos = localStorage.getItem('inventario_schneider');
-    if (dadosSalvos) {
-        inventario = JSON.parse(dadosSalvos);
+    const salvos = localStorage.getItem('inventario_schneider');
+    if (salvos) {
+        inventario = JSON.parse(salvos);
         atualizarLista();
     }
 };
 
-// Salvar dados no celular
-function salvarDados() {
+function salvar() {
     localStorage.setItem('inventario_schneider', JSON.stringify(inventario));
 }
 
-// === FUNÇÕES DO SISTEMA ===
-
 function buscar() {
     let termo = document.getElementById("busca").value.toLowerCase();
-    let resultadosDiv = document.getElementById("resultados");
-    resultadosDiv.innerHTML = "";
-    
+    let resDiv = document.getElementById("resultados");
+    resDiv.innerHTML = "";
     if (termo.length < 2) return;
 
-    let filtrados = produtos.filter(p => 
-        p.descricao.toLowerCase().includes(termo) || 
-        p.barras.includes(termo)
-    ).slice(0, 5); // Limita a 5 resultados para não poluir a tela
-
-    filtrados.forEach(p => {
-        let div = document.createElement("div");
-        div.className = "resultado-item";
-        div.innerHTML = `<strong>${p.descricao}</strong><br><small>Barras: ${p.barras}</small>`;
-        div.onclick = () => selecionar(p);
-        resultadosDiv.appendChild(div);
-    });
+    produtos.filter(p => p.descricao.toLowerCase().includes(termo) || p.barras.includes(termo))
+        .slice(0, 5).forEach(p => {
+            let div = document.createElement("div");
+            div.className = "resultado-item";
+            div.innerHTML = `<strong>${p.descricao}</strong>`;
+            div.onclick = () => selecionar(p);
+            resDiv.appendChild(div);
+        });
 }
 
 function selecionar(p) {
@@ -473,55 +392,36 @@ function selecionar(p) {
 }
 
 function adicionar() {
+    let cod = document.getElementById("codigo").value;
     let desc = document.getElementById("descricao").value;
     let qtd = document.getElementById("quantidade").value;
-    let cod = document.getElementById("codigo").value;
 
     if (!desc || !qtd || qtd <= 0) {
-        alert("Selecione um produto e informe uma quantidade válida!");
+        alert("Preencha o produto e a quantidade!");
         return;
     }
 
-    // Adiciona ao array
-    inventario.push({ 
-        codigo: cod, 
-        descricao: desc, 
-        quantidade: qtd,
-        hora: new Date().toLocaleTimeString() 
-    });
-    
-    salvarDados(); // GRAVA NA MESMA HORA
+    inventario.push({ codigo: cod, descricao: desc, quantidade: qtd });
+    salvar();
     atualizarLista();
     
-    // Limpa campos para o próximo
     document.getElementById("descricao").value = "";
     document.getElementById("codigo").value = "";
     document.getElementById("barras").value = "";
     document.getElementById("quantidade").value = "";
-    document.getElementById("busca").focus();
 }
 
 function atualizarLista() {
     let listaDiv = document.getElementById("lista");
     listaDiv.innerHTML = "";
-    
-    if (inventario.length === 0) {
-        listaDiv.innerHTML = "<small style='color:gray'>Nenhum item adicionado.</small>";
-        return;
-    }
-
-    // Inverte para mostrar o último adicionado no topo
-    [...inventario].reverse().forEach((item, index) => {
-        listaDiv.innerHTML += `
-            <div class="item-inventario">
-                <span>${item.descricao}</span>
-                <span class="badge-qtd">${item.quantidade}</span>
-            </div>`;
+    inventario.forEach(item => {
+        // Exibição na tela seguindo o formato solicitado
+        listaDiv.innerHTML += `<div>Cód|${item.codigo}|${item.descricao}|Qtd|${item.quantidade}</div>`;
     });
 }
 
 function limparInventario() {
-    if (confirm("Deseja apagar TODO o inventário salvo neste celular?")) {
+    if (confirm("Limpar todo o inventário?")) {
         inventario = [];
         localStorage.removeItem('inventario_schneider');
         atualizarLista();
@@ -529,25 +429,19 @@ function limparInventario() {
 }
 
 function enviarWhatsApp() {
-    if (inventario.length === 0) {
-        alert("O inventário está vazio!");
-        return;
-    }
+    if (inventario.length === 0) return alert("Lista vazia!");
 
-    let texto = "📦 *RELATÓRIO DE INVENTÁRIO*\n";
-    texto += "--------------------------------\n";
-    
-    inventario.forEach((item, index) => {
-        texto += `*${index + 1}.* ${item.descricao}\n`;
-        texto += `   Qtd: ${item.quantidade} | Cód: ${item.codigo}\n`;
+    // Montagem do texto no formato: Cód|00000|COCA 0 LT 350ML|Qtd|1
+    let texto = "";
+    inventario.forEach(item => {
+        texto += `Cód|${item.codigo}|${item.descricao}|Qtd|${item.quantidade}\n`;
     });
 
     let url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(texto);
     window.open(url, "_blank");
 
-    // Sugestão de limpeza após envio
     setTimeout(() => {
-        if (confirm("Inventário enviado com sucesso! Deseja limpar a lista para um novo processo?")) {
+        if (confirm("Deseja limpar a lista agora que enviou?")) {
             inventario = [];
             localStorage.removeItem('inventario_schneider');
             atualizarLista();
@@ -555,46 +449,21 @@ function enviarWhatsApp() {
     }, 2000);
 }
 
-// === LÓGICA DA CÂMERA ===
-
 function abrirCamera() {
     const reader = document.getElementById("reader");
     reader.style.display = "block";
-    
     Quagga.init({
-        inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target: reader,
-            constraints: {
-                facingMode: "environment" // Usa a câmera traseira
-            }
-        },
-        decoder: {
-            readers: ["ean_reader", "code_128_reader", "ean_8_reader"]
-        }
-    }, function(err) {
-        if (err) {
-            alert("Erro ao abrir câmera: " + err);
-            return;
-        }
+        inputStream: { name: "Live", type: "LiveStream", target: reader, constraints: { facingMode: "environment" } },
+        decoder: { readers: ["ean_reader", "code_128_reader"] }
+    }, (err) => {
+        if (err) return alert(err);
         Quagga.start();
     });
-
-    Quagga.onDetected(function(data) {
-        let code = data.codeResult.code;
-        let produto = produtos.find(p => p.barras === code);
-        
-        if (produto) {
-            selecionar(produto);
-            Quagga.stop();
-            reader.style.display = "none";
-            // Vibração curta para avisar que leu (apenas Android)
-            if (navigator.vibrate) navigator.vibrate(100);
-        }
+    Quagga.onDetected((data) => {
+        let p = produtos.find(p => p.barras === data.codeResult.code);
+        if (p) { selecionar(p); Quagga.stop(); reader.style.display = "none"; }
     });
 }
 </script>
-
 </body>
 </html>
